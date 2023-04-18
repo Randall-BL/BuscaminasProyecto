@@ -1,10 +1,9 @@
 package Juego;
 
-import Juego.ListaEnlazada;
 import Juego.JoystickController;
-import java.util.LinkedList;
+import Juego.ListaEnlazada;
 import java.util.Random;
-import java.util.Stack;
+import Juego.Pila;
 import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
@@ -22,17 +21,16 @@ import javafx.animation.Timeline;
 import javafx.util.Duration;
 
 
-
 public class Buscaminas extends Application {
     private int[][] tablero;
     private Button[][] botones;
     private int minasRestantes;
-    private Stack<int[]> pilaSugerencias;
+    private Pila pilaSugerencias;
     private int contadorJugadas;
     private boolean turnoJugador = true;
     private boolean juegoEnCurso = true;
     private boolean dificultadAvanzada = false;
-    private Stack<int[]> listaSegura = new Stack<>();
+    private Pila listaSegura = new Pila();
     private JoystickController joystickcontroller;
     private int contadorMinas;
     private Label contadorMinasLabel;
@@ -48,7 +46,7 @@ public class Buscaminas extends Application {
     GridPane root = new GridPane();
     botones = new Button[8][8];
     minasRestantes = 10;
-    pilaSugerencias = new Stack<>();
+    pilaSugerencias = new Pila();
     contadorJugadas = 0;
     joystickcontroller = new JoystickController();
     contadorMinas = 0;
@@ -130,24 +128,27 @@ public class Buscaminas extends Application {
         }
     }
 
-    Button botonDificultad = new Button("Dificultad avanzada");
+    Button botonDificultad = new Button("Escoger dificultad");
+    Button botonSugerencia = new Button("Usar sugerencia");
     botonDificultad.setOnAction(event -> {
         if (dificultadAvanzada) {
             dificultadAvanzada = false;
             botonDificultad.setText("Dificultad normal");
+            botonSugerencia.setDisable(false);
         } else {
             dificultadAvanzada = true;
             botonDificultad.setText("Dificultad avanzada");
+            botonSugerencia.setDisable(true);
         }
     });
     
+    botonSugerencia.setOnAction(event -> usarSugerencia());
     if (!dificultadAvanzada) {
         agregarSugerencia();
     } else {
         hacerJugadaMaquinaAvanzado();
+        
     }
-    Button botonSugerencia = new Button("Usar sugerencia");
-    botonSugerencia.setOnAction(event -> usarSugerencia());
     VBox vbox = new VBox(10, contadorMinasLabel, tiempoTranscurridoLabel, root, botonDificultad, botonSugerencia);
     Scene scene = new Scene(vbox, 400, 550);
     primaryStage.setScene(scene);
@@ -187,21 +188,21 @@ public class Buscaminas extends Application {
         return minasCercanas;
     }
     private void hacerJugadaMaquinaAvanzado() {
-    LinkedList<int[]> listaGeneral = new LinkedList<>();
-    LinkedList<int[]> listaSegura = new LinkedList<>();
-    LinkedList<int[]> listaIncertidumbre = new LinkedList<>();
+    ListaEnlazada listaGeneral = new ListaEnlazada();
+    ListaEnlazada listaSegura = new ListaEnlazada();
+    ListaEnlazada listaIncertidumbre = new ListaEnlazada();
 
     for (int i = 0; i < 8; i++) {
         for (int j = 0; j < 8; j++) {
             if (!botones[i][j].isDisabled()) {
-                listaGeneral.add(new int[]{i, j});
+                listaGeneral.agregarAlFinal(new int[]{i, j});
             }
         }
     }
 
     Random random = new Random();
 
-    while (!listaGeneral.isEmpty()) {
+    while (!listaGeneral.estaVacia()) {
         int index = random.nextInt(listaGeneral.size());
         int[] celda = listaGeneral.get(index);
         int fila = celda[0];
@@ -209,16 +210,16 @@ public class Buscaminas extends Application {
         int minasCercanas = contarMinasCercanas(fila, columna);
 
         if (minasCercanas > 0) {
-            listaIncertidumbre.add(celda);
+            listaIncertidumbre.agregarAlFinal(celda);
         } else {
-            listaSegura.add(celda);
+            listaSegura.agregarAlFinal(celda);
         }
 
-        listaGeneral.remove(index);
+        listaGeneral.eliminar(index);
         imprimirListas(listaGeneral, listaSegura, listaIncertidumbre);
     }
 
-    if (!listaSegura.isEmpty()) {
+    if (!listaSegura.estaVacia()) {
         int index = random.nextInt(listaSegura.size());
         int[] celdaSegura = listaSegura.get(index);
         int fila = celdaSegura[0];
@@ -249,21 +250,24 @@ public class Buscaminas extends Application {
     }
 }
 
-    private void imprimirListas(LinkedList<int[]> listaGeneral, LinkedList<int[]> listaSegura, LinkedList<int[]> listaIncertidumbre) {
+    private void imprimirListas(ListaEnlazada listaGeneral, ListaEnlazada listaSegura, ListaEnlazada listaIncertidumbre) {
         System.out.println("Lista General: " + listaToString(listaGeneral));
         System.out.println("Lista Segura: " + listaToString(listaSegura));
         System.out.println("Lista Incertidumbre: " + listaToString(listaIncertidumbre));
         System.out.println();
     }
 
-    private String listaToString(LinkedList<int[]> lista) {
+    private String listaToString(ListaEnlazada lista) {
         StringBuilder sb = new StringBuilder();
         sb.append("[");
-        for (int[] celda : lista) {
-            sb.append("(").append(celda[0]).append(", ").append(celda[1]).append("), ");
+        Nodo actual = lista.getInicio();
+        while (actual != null){
+            sb.append("(").append(actual.getDato()[0]).append(", ").append(actual.getDato()[1]).append("), ");
+            actual = actual.siguiente;
         }
-            if (!lista.isEmpty()) {
-            sb.setLength(sb.length() - 2);
+        
+        if (lista.getInicio() != null) {
+                sb.setLength(sb.length() - 2);
         }
         sb.append("]");
         return sb.toString();
@@ -308,23 +312,23 @@ public class Buscaminas extends Application {
 }
 
     private void agregarSugerencia() {
-        LinkedList<int[]> celdasDisponibles = new LinkedList<>();
+        ListaEnlazada celdasDisponibles = new ListaEnlazada();
         for (int i = 0; i < 8; i++) {
             for (int j = 0; j < 8; j++) {
                 if (!botones[i][j].isDisabled()) {
-                    celdasDisponibles.add(new int[]{i, j});
+                    celdasDisponibles.agregarAlFinal(new int[]{i, j});
                 }
             }
         }
         Random random = new Random();
-        while (!celdasDisponibles.isEmpty()) {
+        while (!celdasDisponibles.estaVacia()) {
             int index = random.nextInt(celdasDisponibles.size());
             int[] celda = celdasDisponibles.get(index);
             if (tablero[celda[0]][celda[1]] != -1) {
                 pilaSugerencias.push(celda);
                 break;
             } else {
-                celdasDisponibles.remove(index);
+                celdasDisponibles.eliminar(index);
             }
         }
     }
@@ -417,6 +421,7 @@ public class Buscaminas extends Application {
         generarTablero();
         reiniciarJuego();
         stage.close();
+        agregarSugerencia();
     });
 }
 

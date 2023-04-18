@@ -1,5 +1,7 @@
 package Juego;
 
+import Juego.Nodo;
+
 class ListaEnlazada {
     private Nodo cabeza;
     private int size;
@@ -11,6 +13,12 @@ class ListaEnlazada {
     
     public Nodo getInicio(){
         return cabeza;
+    }
+    
+    public void agregarAlInicio(int[] dato) {
+        Nodo nuevo = new Nodo(dato);
+        nuevo.siguiente = cabeza;
+        cabeza = nuevo;
     }
 
     // Método para agregar un elemento al final de la lista
@@ -64,6 +72,13 @@ class ListaEnlazada {
             actual.siguiente = actual.siguiente.siguiente;
         }
         size--;
+    }
+    
+    public void eliminarInicio() {
+        if (cabeza == null) {
+            throw new IllegalStateException("La lista está vacía.");
+        }
+        cabeza = cabeza.siguiente;
     }
 
     // Método para obtener el dato en un índice específico
